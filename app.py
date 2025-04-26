@@ -14,18 +14,17 @@ dados = carregar_dados()
 st.title("Dashboard Interativo de Vendas 📈")
 
 categorias = sorted(dados["Category"].unique().tolist())
-produtos = sorted(dados["Product_Name"].unique().tolist())
+data_min = dados["Date_Sold"].min()
+data_max = dados["Date_Sold"].max()
 
-col1, col2, col3 = st.sidebar.columns(3)
-categoria_sel = col1.multiselect("Categorias", categorias, default=categorias)
-produto_sel = col2.multiselect("Produtos", produtos, default=produtos)
-data_sel = col3.date_input("Período", [dados.Date_Sold.min(), dados.Date_Sold.max()])
+periodo = st.sidebar.slider("Período de Venda", min_value=data_min, max_value=data_max,
+                            value=(data_min, data_max), format="%Y-%m-%d")
+categoria_sel = st.sidebar.multiselect("Categorias", categorias, default=categorias)
 
 filtro = (
     dados["Category"].isin(categoria_sel) &
-    dados["Product_Name"].isin(produto_sel) &
-    (dados["Date_Sold"] >= pd.to_datetime(data_sel[0])) &
-    (dados["Date_Sold"] <= pd.to_datetime(data_sel[1]))
+    (dados["Date_Sold"] >= pd.to_datetime(periodo[0])) &
+    (dados["Date_Sold"] <= pd.to_datetime(periodo[1]))
 )
 dados = dados[filtro]
 
@@ -33,14 +32,16 @@ aba1, aba2, aba3, aba4 = st.tabs(["Vendas ao Longo do Tempo", "Top Produtos", "C
 
 with aba1:
     st.subheader("Total de Vendas ao Longo do Tempo")
-    mostrar_media = st.checkbox("Mostrar média móvel (7 dias)")
-    mostrar_rotulos = st.checkbox("Mostrar rótulos dos pontos")
-    
+    col1, col2, col3 = st.columns(3)
+    mostrar_media = col1.checkbox("Média móvel (7 dias)", value=True)
+    mostrar_rotulos = col2.checkbox("Rótulos nos pontos")
+    mostrar_grade = col3.checkbox("Exibir grade no fundo", value=True)
+
     df_temp = dados.groupby("Date_Sold")["Total_Sales"].sum().reset_index()
     if mostrar_media:
         df_temp["Media_Movel"] = df_temp["Total_Sales"].rolling(7).mean()
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(14, 5))
     ax.plot(df_temp["Date_Sold"], df_temp["Total_Sales"], marker='o', label="Total de Vendas")
     if mostrar_media:
         ax.plot(df_temp["Date_Sold"], df_temp["Media_Movel"], linestyle="--", label="Média Móvel")
@@ -50,36 +51,52 @@ with aba1:
     ax.set_title("Evolução das Vendas")
     ax.set_xlabel("Data")
     ax.set_ylabel("Total R$")
+    if mostrar_grade:
+        ax.grid(True)
     ax.legend()
     st.pyplot(fig)
 
 with aba2:
-    st.subheader("Top 10 Produtos por Receita")
-    vertical = st.checkbox("Orientar verticalmente os rótulos")
-    top_n = st.slider("Quantidade de Produtos", 5, 20, 10)
+    st.subheader("Top Produtos por Receita")
+    col1, col2, col3 = st.columns(3)
+    top_n = col1.slider("Quantidade de Produtos", 5, 20, 10)
+    vertical = col2.checkbox("Rótulos verticais", value=True)
+    mostrar_valores = col3.checkbox("Mostrar valores sobre as barras", value=True)
+
     df_prod = dados.groupby("Product_Name")["Total_Sales"].sum().sort_values(ascending=False).head(top_n)
-    fig, ax = plt.subplots(figsize=(12, 5))
-    sns.barplot(x=df_prod.index, y=df_prod.values, ax=ax)
+    fig, ax = plt.subplots(figsize=(14, 5))
+    barras = sns.barplot(x=df_prod.index, y=df_prod.values, ax=ax)
     ax.set_xlabel("Produto")
     ax.set_ylabel("Receita Total")
     if vertical:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    if mostrar_valores:
+        for i, valor in enumerate(df_prod.values):
+            ax.text(i, valor, f"{valor:.0f}", ha='center', va='bottom', fontsize=8)
     ax.set_title("Produtos com Maior Receita")
     st.pyplot(fig)
 
 with aba3:
     st.subheader("Distribuição de Receita por Categoria")
-    explodir = st.checkbox("Explodir setores")
+    col1, col2 = st.columns(2)
+    explodir = col1.checkbox("Explodir setores")
+    mostrar_legenda = col2.checkbox("Exibir legenda", value=True)
+
     df_cat = dados.groupby("Category")["Total_Sales"].sum()
     explode = [0.1 if explodir else 0 for _ in df_cat]
-    fig, ax = plt.subplots(figsize=(7, 7))
-    ax.pie(df_cat, labels=df_cat.index, autopct="%1.1f%%", explode=explode, startangle=90)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    wedges, texts, autotexts = ax.pie(df_cat, labels=df_cat.index if mostrar_legenda else None,
+                                      autopct="%1.1f%%", explode=explode, startangle=90)
     ax.axis("equal")
     st.pyplot(fig)
 
 with aba4:
     st.subheader("Matriz de Correlação entre Variáveis Numéricas")
+    col1, col2 = st.columns(2)
+    mapa_anotado = col1.checkbox("Exibir valores numéricos", value=True)
+    cmap_escolhido = col2.selectbox("Escolher paleta de cores", ["coolwarm", "viridis", "plasma", "magma", "Blues"])
+
     corr = dados[["Price", "Quantity_Sold", "Total_Sales"]].corr()
     fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    sns.heatmap(corr, annot=mapa_anotado, cmap=cmap_escolhido, ax=ax)
     st.pyplot(fig)
