@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 st.set_page_config(layout="wide")
 
@@ -18,7 +19,7 @@ data_min = dados["Date_Sold"].min().date()
 data_max = dados["Date_Sold"].max().date()
 
 periodo = st.sidebar.slider("Período de Venda", min_value=data_min, max_value=data_max,
-                            value=(data_min, data_max), format="%Y-%m-%d")
+                            value=(data_min, data_max), format="%d/%m/%Y")
 categoria_sel = st.sidebar.multiselect("Categorias", categorias, default=categorias)
 
 filtro = (
@@ -47,7 +48,8 @@ with aba1:
         ax.plot(df_temp["Date_Sold"], df_temp["Media_Movel"], linestyle="--", label="Média Móvel")
     if mostrar_rotulos:
         for i in range(len(df_temp)):
-            ax.text(df_temp["Date_Sold"][i], df_temp["Total_Sales"][i], f'{df_temp["Total_Sales"][i]:.0f}', fontsize=8)
+            valor = f"R$ {df_temp['Total_Sales'][i]:,.2f}".replace(",", "v").replace(".", ",").replace("v", ".")
+            ax.text(df_temp["Date_Sold"][i], df_temp["Total_Sales"][i], valor, fontsize=8)
     ax.set_title("Evolução das Vendas")
     ax.set_xlabel("Data")
     ax.set_ylabel("Total R$")
@@ -72,7 +74,8 @@ with aba2:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     if mostrar_valores:
         for i, valor in enumerate(df_prod.values):
-            ax.text(i, valor, f"{valor:.0f}", ha='center', va='bottom', fontsize=8)
+            label = f"R$ {valor:,.2f}".replace(",", "v").replace(".", ",").replace("v", ".")
+            ax.text(i, valor, label, ha='center', va='bottom', fontsize=8)
     ax.set_title("Produtos com Maior Receita")
     st.pyplot(fig)
 
@@ -86,7 +89,8 @@ with aba3:
     explode = [0.1 if explodir else 0 for _ in df_cat]
     fig, ax = plt.subplots(figsize=(8, 6))
     wedges, texts, autotexts = ax.pie(df_cat, labels=df_cat.index if mostrar_legenda else None,
-                                      autopct="%1.1f%%", explode=explode, startangle=90)
+                                      autopct=lambda p: f"R$ {(p/100)*df_cat.sum():,.2f}".replace(",", "v").replace(".", ",").replace("v", "."),
+                                      explode=explode, startangle=90)
     ax.axis("equal")
     st.pyplot(fig)
 
