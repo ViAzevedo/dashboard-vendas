@@ -14,8 +14,8 @@ dados = carregar_dados()
 st.title("Dashboard Interativo de Vendas 📈")
 
 categorias = sorted(dados["Category"].unique().tolist())
-data_min = dados["Date_Sold"].min()
-data_max = dados["Date_Sold"].max()
+data_min = dados["Date_Sold"].min().date()
+data_max = dados["Date_Sold"].max().date()
 
 periodo = st.sidebar.slider("Período de Venda", min_value=data_min, max_value=data_max,
                             value=(data_min, data_max), format="%Y-%m-%d")
